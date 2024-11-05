@@ -1,32 +1,28 @@
 import requests
 from bs4 import BeautifulSoup
 
-def scrape_professors(major, num_pages):
-    # Base URL
-    base_url = f"https://engineering.virginia.edu/department/{major}/faculty?page="
+def scrape_professor_names(url, num_pages):
+    professor_names = []
     
-    # List to store faculty names
-    faculty_names = []
+    response = requests.get(url)
     
-    # Loop through pages
-    for page in range(num_pages):
-        url = f"{base_url}{page}"
-        response = requests.get(url)
-        # Parse the HTML content of the page
-        soup = BeautifulSoup(response.content, 'html.parser')
+    # Check if request was successful
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Find all 'people_list_item' divs
-        people_items = soup.find_all('div', class_='people_list_item')
+        contact_rows = soup.find_all("div", class_="contact_block_row js-contact-grid-row")
         
-        # Extract the name from each item
-        for item in people_items:
-            name_span = item.find('span', class_='contact_block_name_link_label')
+        # Within each contact row div, find the span with the professor's name
+        for row in contact_rows:
+            name_span = row.find("span", class_="contact_block_name_link_label")
+            
+            # Append the name if found
             if name_span:
-                faculty_names.append(name_span.text.strip())
-    
-    return faculty_names
+                professor_names.append(name_span.get_text(strip=True))
+    else:
+        print(f"Failed to retrieve {url} with status code: {response.status_code}")
 
-    import requests
+    return professor_names
 
 def get_author_id(name):
     url = f"https://api.semanticscholar.org/graph/v1/author/search?query={name}&fields=name,authorId,paperCount,citationCount"
