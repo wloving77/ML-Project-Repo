@@ -1,12 +1,17 @@
 import requests
 from bs4 import BeautifulSoup
+import urllib
 import time
+import random
+import json
 
 
 class ProfessorHelpers:
 
     def __init__(self):
+        # firt link is the general all CS professors link:
         self.urls = [
+            "https://engineering.virginia.edu/department/computer-science/people?keyword=&position=2&impact_area=All&research_area=All",
             "https://engineering.virginia.edu/department/computer-science/research/artificial-intelligence-research",
             "https://engineering.virginia.edu/department/computer-science/research/computer-systems-research",
             "https://engineering.virginia.edu/department/computer-science/research/cyber-physical-systems-research",
@@ -16,87 +21,168 @@ class ProfessorHelpers:
             "https://engineering.virginia.edu/department/computer-science/research/theory",
         ]
 
-    def scrape_professor_names(self, url):
-        professor_names = []
-
+    def fetch_professors_google_scholar_links_by_interest_area(self, url):
+        """This function scrapes UVA professor names and their google scholar links if they exist, if the scholar link is not found the professor is ignored"""
         response = requests.get(url)
+        response.raise_for_status()
 
-        if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        professors_links = {}
+
+        # Loop through each div with the specific class
+        for contact_block in soup.find_all(
+            "div", class_="contact_block_row js-contact-grid-row"
+        ):
+            # Find the span with the professor's name
+            name_span = contact_block.find(
+                "span", class_="contact_block_name_link_label"
+            )
+            name = name_span.get_text(strip=True) if name_span else None
+
+            # Find the link to Google Scholar within the div
+            scholar_link = None
+            for a_tag in contact_block.find_all("a", href=True):
+                href = a_tag["href"]
+                if "https://scholar.google.com/citations" in href:
+                    scholar_link = href
+                    break
+
+            # Only add to dictionary if both name and scholar link are found
+            if name and scholar_link:
+                professors_links[name] = scholar_link
+
+        return professors_links
+
+    def fetch_all_professors_google_scholar_links(self, base_url, num_pages=1):
+        """This function scrapes professor names and their Google Scholar links
+        across multiple pages. Only professors with a Google Scholar link are included.
+        """
+
+        professors_links = {}
+
+        # Loop over the specified number of pages
+        for page in range(0, num_pages):
+
+            url = f"{base_url}&page={page}"
+
+            # Make the GET request
+            response = requests.get(url)
+            response.raise_for_status()
+
             soup = BeautifulSoup(response.text, "html.parser")
 
-            contact_rows = soup.find_all(
-                "div", class_="contact_block_row js-contact-grid-row"
-            )
+            for person in soup.find_all("div", class_="people_list_item has_image"):
+                # Find the span with the professor's name
+                name_span = person.find("span", class_="contact_block_name_link_label")
+                name = name_span.get_text(strip=True) if name_span else None
 
-            for row in contact_rows:
-                name_span = row.find("span", class_="contact_block_name_link_label")
+                # Find the Google Scholar link within the div
+                scholar_link = None
+                for a_tag in person.find_all("a", href=True):
+                    href = a_tag["href"]
+                    if "https://scholar.google.com/citations" in href:
+                        scholar_link = href
+                        break
 
-                if name_span:
-                    professor_names.append(name_span.get_text(strip=True))
-        else:
-            print(f"Failed to retrieve {url} with status code: {response.status_code}")
+                # Only add to dictionary if both name and scholar link are found
+                if name and scholar_link:
+                    professors_links[name] = scholar_link
 
-        return professor_names
+        return professors_links
 
-    def get_potential_ids(self, name):
-        url = f"https://api.semanticscholar.org/graph/v1/author/search?query={name}&fields=name,authorId,paperCount,citationCount"
-        response = requests.get(url)
+    def fetch_scholar_papers(self, prof_name, scholar_urls):
+        """This function takes a professors name and their google scholar page and scrapes all of the paper titles and links to their abstracts"""
 
-        if response.status_code == 200:
-            data = response.json()
-            if "data" in data:
-                authors = []
-                for author in data["data"]:
-                    authors.append(
-                        {
-                            "name": author["name"],
-                            "authorId": author["authorId"],
-                            "paperCount": author["paperCount"],
-                            "citationCount": author["citationCount"],
-                        }
+        profile_url = scholar_urls.get(prof_name)
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+        }
+
+        try:
+            response = requests.get(profile_url, headers=headers)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            # Extract citations
+            papers = []
+            for entry in soup.find_all("a", href=True):
+                href = entry["href"]
+                if "/citations?view_op=view_citation" in href:
+                    citation_link = urllib.parse.urljoin(
+                        "https://scholar.google.com", href
                     )
-                return authors
-            else:
-                return "No authors found with this name."
+                    paper_title = entry.get_text(strip=True)
+                    papers.append(
+                        {"title": paper_title, "abstract_link": citation_link}
+                    )
 
-    def filter_ids(self, professors):
-        possible_professors = []
-
-        # gets possible matches from semantic scholar
-        for professor in professors:
-            possible_professors.append(self.get_potential_ids(professor))
-            time.sleep(1)
-
-        # filters for exact name matches
-        for i in range(len(professors)):
-            possible_professors[i] = [
-                professor
-                for professor in possible_professors[i]
-                if professor.get("name") == professors[i]
-            ]
-
-        return possible_professors
-
-    def get_author_papers_with_abstracts(self, author_id):
-        url = f"https://api.semanticscholar.org/graph/v1/author/{author_id}/papers"
-        params = {"fields": "title,abstract,year"}  # Specify the fields you need
-        response = requests.get(url, params=params)
-        data = response.json()
-
-        # Check if papers were returned
-        if "data" not in data:
+            return papers
+        except Exception as e:
+            print(f"Error fetching papers for {prof_name}: {e}")
             return []
 
-        # Extract abstracts
-        papers_with_abstracts = []
-        for paper in data["data"]:
-            if "abstract" in paper and paper["abstract"]:
-                papers_with_abstracts.append(
-                    {
-                        "title": paper["title"],
-                        "abstract": paper["abstract"],
-                        "year": paper["year"],
-                    }
-                )
+    def fetch_paper_details(self, citation_url):
+        """This function takes as input a citation url and returns a dictionary with the paper abstract and a link to the host site of the paper"""
 
-        return papers_with_abstracts
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+        }
+
+        response = requests.get(citation_url, headers=headers)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        paper_details = {"abstract": None, "paper_link": None}
+
+        description_div = soup.find("div", class_="gsc_oci_field", string="Description")
+
+        # Find the abstract text in the next sibling div
+        if description_div:
+            abstract_div = description_div.find_next_sibling(
+                "div", class_="gsc_oci_value"
+            )
+            paper_details["abstract"] = (
+                abstract_div.get_text(strip=True)
+                if abstract_div
+                else "Abstract not found."
+            )
+        else:
+            print("Description field not found on page.")
+
+        # Find the link to the paper
+        title_link = soup.find("a", class_="gsc_oci_title_link")
+        if title_link and title_link["href"]:
+            paper_details["paper_link"] = title_link["href"]
+        else:
+            print("Paper link not found.")
+
+        return paper_details["abstract"], paper_details["paper_link"]
+
+    def gather_all_papers_by_professor(self, prof_names_and_links):
+        """This functions scrapes google scholar and returns a dictionary of professors and their papers, with the paper titles and links to their abstracts"""
+        professor_info = []
+        for professor in prof_names_and_links:
+            prof_dictionary = {"Professor": professor, "Papers": []}
+            prof_papers = self.fetch_scholar_papers(professor, prof_names_and_links)
+            prof_dictionary["Papers"] = prof_papers
+            professor_info.append(prof_dictionary)
+            print(f"Papers Gathered for {professor}")
+            # sleep a random amt of time to avoid scraping detection
+            self.random_sleep()
+        return professor_info
+
+    def gather_all_paper_abstracts_and_links(self, professors_and_papers):
+        return None
+
+    def random_sleep(self, min_delay=5, max_delay=10):
+        """This function sleeps for a random amount of time between 3 and 10 seconds to avoid scraping detection by Google :O"""
+        delay = random.uniform(min_delay, max_delay)
+        print(f"Sleeping for {delay:.2f} seconds...")
+        time.sleep(delay)
+
+    def write_dict_to_json(self, data, filename="output.json"):
+        with open(filename, "w") as json_file:
+            json.dump(data, json_file, indent=4)
