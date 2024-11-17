@@ -161,6 +161,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+
+# Extra Files and Dirs
 airflow-data/
 mysql_data/
 vector_postgres_data/
+airflow_postgres_data/
