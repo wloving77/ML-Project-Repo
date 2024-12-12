@@ -1,0 +1,35 @@
+version: '3.9'
+
+networks:
+  shared_network:
+    driver: bridge
+
+services:
+  dashy:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dashy
+    container_name: dashy_server
+    env_file:
+      ./.env
+    ports:
+      - "8050:8050"
+    networks:
+      - shared_network  # Connect dashy to the shared network
+
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: postgres_server
+    restart: always
+    env_file:
+      ./.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db_init/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - shared_network  # Connect postgres to the shared network
+
+volumes:
+  pgdata:
