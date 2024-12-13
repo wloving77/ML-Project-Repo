@@ -5,7 +5,10 @@ from helpers.scraping_helpers import ScrapeHelpers
 from helpers.postgres_helper import PostgresConnector
 from dotenv import load_dotenv
 
-load_dotenv(".env")
+load_dotenv("prod.env")
+
+# For running on host machine:
+# load_dotenv("dev.env")
 
 embed_helper = EmbeddingHelper()
 scrape_helper = ScrapeHelpers()

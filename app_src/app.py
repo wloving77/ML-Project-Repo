@@ -7,7 +7,10 @@ from helpers import postgres_helper, embedding_helper, LLM_helpers
 from dotenv import load_dotenv
 
 # environment variables, PG stuff and gemini API key
-load_dotenv(".env")
+load_dotenv("prod.env")
+
+# For development:
+# load_dotenv("dev.env")
 
 pg_helper = postgres_helper.PostgresConnector()
 embed_helper = embedding_helper.EmbeddingHelper()

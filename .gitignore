@@ -167,3 +167,10 @@ airflow-data/
 mysql_data/
 vector_postgres_data/
 airflow_postgres_data/
+
+
+# Specific to dashy app:
+
+pgdata/
+prod.env
+dev.env

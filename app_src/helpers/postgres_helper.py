@@ -5,14 +5,7 @@ import os
 
 
 class PostgresConnector:
-    def __init__(
-        self,
-        # dbname="ml_project",
-        # user="wloving77",
-        # password="secure_password",
-        port=5432,
-        host="localhost",
-    ):
+    def __init__(self):
         """
         Initializes the PostgresConnector class with connection details.
 
@@ -22,13 +15,11 @@ class PostgresConnector:
         :param password: Password
         :param port: Port (default: 5432)
         """
-        # load_dotenv("../.env")
-
-        self.host = host
+        self.host = os.getenv("POSTGRES_HOST")
         self.dbname = os.getenv("POSTGRES_DB")
         self.user = os.getenv("POSTGRES_USER")
         self.password = os.getenv("POSTGRES_PASSWORD")
-        self.port = port
+        self.port = os.getenv("POSTGRES_PORT")
         self.connection = None
 
     def create_connection(self):
