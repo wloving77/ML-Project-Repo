@@ -6,7 +6,7 @@ import random
 import json
 
 
-class ProfessorHelpers:
+class ScrapeHelpers:
 
     def __init__(self):
         # first link is the general all CS professors link:

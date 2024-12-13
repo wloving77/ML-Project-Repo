@@ -174,3 +174,5 @@ airflow_postgres_data/
 pgdata/
 prod.env
 dev.env
+
+.vscode/
