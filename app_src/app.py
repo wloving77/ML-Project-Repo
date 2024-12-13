@@ -7,10 +7,10 @@ from helpers import postgres_helper, embedding_helper, LLM_helpers
 from dotenv import load_dotenv
 
 # environment variables, PG stuff and gemini API key
-load_dotenv("prod.env")
+# load_dotenv("prod.env")
 
 # For development:
-# load_dotenv("dev.env")
+load_dotenv("dev.env")
 
 pg_helper = postgres_helper.PostgresConnector()
 embed_helper = embedding_helper.EmbeddingHelper()
@@ -32,7 +32,7 @@ app.layout = html.Div(
         html.Button("Submit", id="submit-query", n_clicks=0),
         # Div to display LLM response
         html.H1("LLM Response"),
-        html.Div(
+        dcc.Markdown(
             id="llm-response",
             style={
                 "marginTop": "20px",
@@ -57,14 +57,9 @@ app.layout = html.Div(
 
 
 # Stub: Function to get response from LLM (Gemini)
-def get_llm_response(query):
-
-    context = get_research_papers(query)
-
+def get_llm_response(query, context):
     llm_response = LLM_helpers.send_request(query, context)
-
-    # Placeholder: Replace with actual call to LLM
-    return f"{llm_response}"
+    return llm_response
 
 
 # Stub: Function to get research papers as JSON
@@ -89,11 +84,13 @@ def handle_query_submission(n_clicks, query):
     if not query:
         return "Please enter a query.", []
 
-    # Get LLM response
-    llm_response = get_llm_response(query)
-
     # Get research papers
     papers = get_research_papers(query)
+
+    llm_response = get_llm_response(query, papers)
+
+    # Use raw Markdown for the LLM response
+    formatted_response = llm_response if llm_response else "No response available."
 
     # Format the research papers as an HTML list
     paper_list_items = [
@@ -115,7 +112,7 @@ def handle_query_submission(n_clicks, query):
         for paper in papers
     ]
 
-    return llm_response, paper_list_items
+    return formatted_response, paper_list_items
 
 
 # Run the app
