@@ -10,7 +10,8 @@
 2. Run `docker-compose up` in `./src` directory
 3. Run `docker exec -it dashy_server python3 populate_db.py` to populate the database, this will take a few minutes
 4. Navigate to `0.0.0.0:8050` in your browser and you should see a dashy app.
-5. Try it out!
+5. Try it out! Link to [Github](https://github.com/wloving77/ML-Project-Repo/tree/williams-branch)
+
 
 # Notes:
 
