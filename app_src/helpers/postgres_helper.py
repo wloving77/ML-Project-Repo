@@ -54,33 +54,52 @@ class PostgresConnector:
         self, professor_name, paper_title, paper_abstract, paper_embedding, paper_link
     ):
         """
-        Inserts a professor and a paper into the database.
+        Inserts a professor and a paper into the database. Checks if the professor already exists.
 
         :param professor_name: Name of the professor
         :param paper_title: Title of the paper
         :param paper_abstract: Abstract of the paper
-        :param paper_embedding: 768-dimensional embedding vector
+        :param paper_embedding: Embedding vector (e.g., 768-dimensional or 384-dimensional)
         :param paper_link: Link to the paper
         """
         try:
             with self.connection.cursor() as cur:
-                # Insert professor
+                # Check if professor already exists
                 cur.execute(
                     """
-                        INSERT INTO professors (name) 
-                        VALUES (%s) 
-                        RETURNING id;
-                        """,
+                    SELECT id FROM professors WHERE name = %s;
+                    """,
                     (professor_name,),
                 )
-                professor_id = cur.fetchone()[0]
+                result = cur.fetchone()
 
-                # Insert paper
+                if result:
+                    # If professor exists, get their ID
+                    professor_id = result[0]
+                    print(
+                        f"Professor '{professor_name}' exists with ID {professor_id}."
+                    )
+                else:
+                    # Insert new professor
+                    cur.execute(
+                        """
+                        INSERT INTO professors (name)
+                        VALUES (%s)
+                        RETURNING id;
+                        """,
+                        (professor_name,),
+                    )
+                    professor_id = cur.fetchone()[0]
+                    print(
+                        f"Inserted new professor '{professor_name}' with ID {professor_id}."
+                    )
+
+                # Insert paper linked to the professor
                 cur.execute(
                     """
-                        INSERT INTO papers (professor_id, title, abstract, embedding, paper_link) 
-                        VALUES (%s, %s, %s, %s, %s);
-                        """,
+                    INSERT INTO papers (professor_id, title, abstract, embedding, paper_link)
+                    VALUES (%s, %s, %s, %s, %s);
+                    """,
                     (
                         professor_id,
                         paper_title,

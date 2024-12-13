@@ -72,7 +72,7 @@ def get_research_papers(query):
     query_embedding = embed_helper.create_embedding(query)
 
     pg_helper.create_connection()
-    similar_papers = pg_helper.find_similar_papers(query_embedding, 10)
+    similar_papers = pg_helper.find_similar_papers(query_embedding, 25)
     similar_papers.reverse()
     pg_helper.close_connection()
 
